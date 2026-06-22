@@ -1,97 +1,38 @@
-# Model Monitoring
+# Model Monitoring and Drift Detection
 
-Production model monitoring with PSI/KL drift detection and prediction drift alerts
+Once a model is deployed, the question is no longer "is it accurate" but "is the
+data still the data it was validated on". This watches for that. You give it a
+frozen reference window, the training set or the last production window you
+trusted, and it tells you when the live inputs or the model's own scores have
+moved far enough that the model should be looked at again.
 
-`monitoring` `mlops` `drift-detection` `production` `python`
+That is the trigger in a governance or change control story. Drift past a
+threshold means revalidate before you keep trusting the predictions.
 
-## Overview
+## What it checks
 
-This repository implements a complete pipeline for **model monitoring**, covering
-data preprocessing, model training, evaluation, and deployment.
+PSI, the Population Stability Index, for continuous distributions, with the usual
+model risk thresholds where anything over 0.25 counts as a real shift. The KS
+test for continuous features and scores. A chi square test for categorical
+features.
 
-## Features
-
-- Clean, modular PyTorch implementation
-- Reproducible experiments with MLflow tracking
-- Comprehensive evaluation with standard benchmarks
-- ONNX export for production deployment
-- Detailed documentation and usage examples
-
-## Installation
-
-```bash
-git clone https://github.com/YOUR_USERNAME/model-monitoring.git
-cd model-monitoring
-pip install -r requirements.txt
-```
-
-## Quick Start
+## Using it
 
 ```python
-from src.model import Model
-from src.trainer import Trainer
-from src.config import Config
+from monitor import DriftMonitor
 
-config = Config.from_yaml("configs/default.yaml")
-model = Model(config)
-trainer = Trainer(model, config)
-trainer.train()
+monitor = DriftMonitor(reference={"age": ref_age, "pred_score": ref_scores})
+report = monitor.report(current={"age": cur_age, "pred_score": cur_scores})
+print(report["drift_detected"], report["drifted_features"])
 ```
 
-## Project Structure
+## Tests
 
 ```
-model-monitoring/
-├── src/
-│   ├── model.py        # Model architecture
-│   ├── dataset.py      # Data loading and preprocessing
-│   ├── trainer.py      # Training loop
-│   ├── evaluate.py     # Evaluation metrics
-│   └── utils.py        # Helper utilities
-├── configs/
-│   └── default.yaml    # Default configuration
-├── notebooks/
-│   └── exploration.ipynb
-├── tests/
-│   └── test_model.py
-├── requirements.txt
-└── README.md
+pip install -r requirements.txt
+pytest tests/ -q
 ```
 
-## Results
-
-| Model | Dataset | Metric | Score |
-|-------|---------|--------|-------|
-| Baseline | Standard | Primary | - |
-| Ours | Standard | Primary | - |
-
-## Usage
-
-```bash
-# Train
-python train.py --config configs/default.yaml
-
-# Evaluate
-python evaluate.py --checkpoint checkpoints/best.pth
-
-# Export to ONNX
-python export.py --checkpoint checkpoints/best.pth
-```
-
-## References
-
-- Relevant papers and resources for model monitoring
-
-## License
-
-MIT
-
-# update 2
-
-# update 3
-
-# update 5
-
-# update 7
-
-# update 12
+The tests check both directions: no false alarm when the current window is drawn
+from the same distribution, and a clear signal when the mean shifts or a
+category gets reweighted. Nothing to download.
